@@ -1,0 +1,18 @@
+.env
+.venv/
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.cache/
+*.egg-info/
+dist/
+build/
+data/cache/
+*.pkl
+# CSV preview is generated locally; optional to commit small samples only
+data/cache/restaurants.csv
+data/cache/restaurants.parquet
+data/cache/restaurants_preview.json
+.DS_Store

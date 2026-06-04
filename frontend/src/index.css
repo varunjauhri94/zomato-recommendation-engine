@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface-dim: #111318;
+  --color-surface-container-lowest: #0c0e13;
+  --color-surface-container-low: #1a1b21;
+  --color-surface-container: #1e1f25;
+  --color-surface-container-high: #282a2f;
+  --color-surface-container-highest: #33353a;
+  --color-on-surface: #e2e2e9;
+  --color-on-surface-variant: #e3bdc0;
+  --color-outline: #aa888b;
+  --color-outline-variant: #5b4042;
+  --color-primary-brand: #ffb2ba;
+  --color-primary-container: #ff4f73;
+  --color-secondary-container: #feb300;
+  --color-tertiary-fixed-dim: #ffb4a5;
+  
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+/* Global Font & Background overrides */
+html, body, #root {
+  font-family: 'Inter', sans-serif;
+  background-color: #0c0e13;
+  color: #e2e2e9;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0c0e13;
+}
+::-webkit-scrollbar-thumb {
+  background: #282a2f;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #33353a;
+}
+
+/* Glassmorphism containers */
+.glass {
+  background: rgba(26, 27, 33, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+}
+
+.ai-glow {
+  box-shadow: 0 0 30px 0 rgba(255, 79, 115, 0.15);
+}
+
+.ai-summary-glow {
+  box-shadow: 0 0 40px 0 rgba(147, 0, 10, 0.15);
+}
+
+/* Material symbols icons setup */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  vertical-align: middle;
+}
+.material-fill {
+  font-variation-settings: 'FILL' 1;
+}
