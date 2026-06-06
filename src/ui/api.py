@@ -17,7 +17,7 @@ app = FastAPI(title="BiteAI Backend API", description="REST API for Zomato AI Re
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://YOUR-APP-NAME.vercel.app",  # TODO: Replace with actual Vercel URL after deployment
+        "https://frontend-eta-steel-46.vercel.app",  # Vercel production
         "http://localhost:5173",              # Local Vite dev server
         "http://localhost:4173",              # Local Vite preview server
     ],
