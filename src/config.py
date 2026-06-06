@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import Dict, Optional
 
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
     budget_medium_max: int = Field(default=1500, alias="BUDGET_MEDIUM_MAX")
 
     data_cache_path: str = Field(
-        default="data/cache/restaurants.pkl",
+        default_factory=lambda: "/tmp/data_cache/restaurants.pkl" if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PORT") else "data/cache/restaurants.pkl",
         alias="DATA_CACHE_PATH",
     )
     use_data_cache: bool = Field(default=True, alias="USE_DATA_CACHE")

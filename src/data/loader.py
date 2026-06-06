@@ -21,11 +21,15 @@ def _ensure_hf_cache() -> None:
     if settings.hf_home:
         os.environ["HF_HOME"] = settings.hf_home
     elif not os.environ.get("HF_HOME"):
-        # Default to project-local cache (see edge-cases D-08)
-        project_root = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..")
-        )
-        os.environ["HF_HOME"] = os.path.join(project_root, ".cache", "huggingface")
+        # On Railway/PaaS, project dir is read-only; use /tmp
+        if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PORT"):
+            os.environ["HF_HOME"] = "/tmp/hf_cache"
+        else:
+            # Default to project-local cache for local development
+            project_root = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..")
+            )
+            os.environ["HF_HOME"] = os.path.join(project_root, ".cache", "huggingface")
 
 
 def load_raw_dataset(*, max_retries: int = 3) -> List[Dict[str, Any]]:
