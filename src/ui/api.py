@@ -1,7 +1,7 @@
 """FastAPI API server for BiteAI recommendations."""
 
 import logging
-from contextlib import asynccontextmanager
+import threading
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from src.data.store import initialize_store
@@ -12,27 +12,31 @@ from src.orchestration.recommender import RecommenderService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Module-level store reference — populated during startup
+# Module-level store reference — populated by background thread
 store = None
+store_error = None
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Initialize the restaurant store on startup (after port is bound)."""
-    global store
+def _load_store_background():
+    """Load the restaurant store in a background thread so the server can start immediately."""
+    global store, store_error
     try:
+        logger.info("Background store initialization starting...")
         store = initialize_store()
         logger.info("RestaurantStore initialized successfully: %d restaurants", store.count)
     except Exception as exc:
         logger.error("Failed to initialize RestaurantStore: %s", exc)
-        store = None
-    yield
+        store_error = str(exc)
+
+
+# Start background loading immediately — server binds the port first, data loads in parallel
+_init_thread = threading.Thread(target=_load_store_background, daemon=True)
+_init_thread.start()
 
 
 app = FastAPI(
     title="BiteAI Backend API",
     description="REST API for Zomato AI Recommendation Engine",
-    lifespan=lifespan,
 )
 
 # CORS middleware — restrict origins for production
@@ -52,14 +56,20 @@ app.add_middleware(
 @app.get("/api/health")
 def health():
     """Health check endpoint for Railway."""
-    return {"status": "ok", "store_ready": store is not None}
+    return {
+        "status": "ok",
+        "store_ready": store is not None,
+        "store_error": store_error,
+    }
 
 
 @app.get("/api/filters")
 def get_filters():
     """Extracts unique areas in Bangalore and unique cuisines from the dataset."""
     if store is None:
-        raise HTTPException(status_code=503, detail="Database store is still initializing. Please retry in a few seconds.")
+        if store_error:
+            raise HTTPException(status_code=500, detail=f"Store initialization failed: {store_error}")
+        raise HTTPException(status_code=503, detail="Database store is still loading (~30s on first boot). Please retry shortly.")
 
     try:
         all_restaurants = store.get_all()
@@ -93,12 +103,13 @@ def get_filters():
 def recommend(prefs: UserPreferences):
     """Orchestrates recommendation filtering and AI-powered ranking."""
     if store is None:
-        raise HTTPException(status_code=503, detail="Database store is still initializing. Please retry in a few seconds.")
+        if store_error:
+            raise HTTPException(status_code=500, detail=f"Store initialization failed: {store_error}")
+        raise HTTPException(status_code=503, detail="Database store is still loading (~30s on first boot). Please retry shortly.")
 
     try:
         service = RecommenderService(store=store)
         response = service.recommend(prefs)
-        # Pydantic models are serialized to JSON automatically by FastAPI
         return response
     except Exception as exc:
         logger.exception("Error running recommendation: %s", exc)
