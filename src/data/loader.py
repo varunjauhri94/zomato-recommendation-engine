@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from src.config import get_settings
 
@@ -32,7 +32,7 @@ def _ensure_hf_cache() -> None:
             os.environ["HF_HOME"] = os.path.join(project_root, ".cache", "huggingface")
 
 
-def load_raw_dataset(*, max_retries: int = 3) -> List[Dict[str, Any]]:
+def load_raw_dataset(*, max_retries: int = 3) -> Iterable[Dict[str, Any]]:
     """
     Fetch the Zomato dataset from Hugging Face.
 
@@ -68,13 +68,14 @@ def load_raw_dataset(*, max_retries: int = 3) -> List[Dict[str, Any]]:
             if len(dataset) == 0:
                 raise DatasetLoadError("Dataset returned zero rows.")
 
-            records = [dict(row) for row in dataset]
             logger.info(
                 "Dataset loaded: row_count=%d duration_ms=%.0f",
-                len(records),
+                len(dataset),
                 elapsed_ms,
             )
-            return records
+            for row in dataset:
+                yield dict(row)
+            return
 
         except DatasetLoadError:
             raise

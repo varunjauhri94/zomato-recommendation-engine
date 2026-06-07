@@ -20,6 +20,5 @@ class Restaurant(BaseModel):
     rating: Optional[float] = None
     cost_for_two: Optional[int] = None
     budget_band: BudgetBand = "unknown"
-    raw: Dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"frozen": True}

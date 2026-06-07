@@ -161,7 +161,6 @@ def preprocess_row(row: Dict[str, Any], index: int, stats: PreprocessStats) -> O
         rating=rating,
         cost_for_two=cost,
         budget_band=budget_band,
-        raw=row,
     )
 
 
