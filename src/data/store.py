@@ -24,6 +24,13 @@ logger = logging.getLogger(__name__)
 
 STORE_VERSION = 1
 
+# Pre-processed dataset shipped with the repo. Loading from this avoids the
+# Hugging Face download + `datasets` import + full preprocessing on every cold
+# start, which spikes memory and OOM-crashes small containers (e.g. Railway).
+SEED_PARQUET_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "seed" / "restaurants.parquet"
+)
+
 
 class StoreNotReadyError(Exception):
     """Raised when the store is accessed before initialization."""
@@ -116,6 +123,67 @@ def _ensure_preview_exports(store: RestaurantStore, pkl_file: Path) -> None:
             logger.warning("Could not refresh preview %s: %s", path.name, exc)
 
 
+def _load_from_seed() -> Optional[RestaurantStore]:
+    """Build the store from the committed seed parquet (no HF download).
+
+    Returns None if the seed file is absent or unreadable so the caller can
+    fall back to the live Hugging Face load.
+    """
+    if not SEED_PARQUET_PATH.exists():
+        return None
+
+    try:
+        import math
+
+        import pandas as pd
+
+        df = pd.read_parquet(SEED_PARQUET_PATH)
+
+        def _clean_float(value: object) -> Optional[float]:
+            if value is None:
+                return None
+            try:
+                num = float(value)
+            except (TypeError, ValueError):
+                return None
+            return None if math.isnan(num) else num
+
+        def _clean_int(value: object) -> Optional[int]:
+            num = _clean_float(value)
+            return None if num is None else int(num)
+
+        def _clean_str(value: object) -> str:
+            if value is None:
+                return ""
+            text = str(value)
+            return "" if text.lower() == "nan" else text
+
+        restaurants: List[Restaurant] = []
+        for row in df.to_dict("records"):
+            restaurants.append(
+                Restaurant(
+                    id=_clean_str(row.get("id")),
+                    name=_clean_str(row.get("name")),
+                    location=_clean_str(row.get("location")),
+                    city=_clean_str(row.get("city")),
+                    cuisine=_clean_str(row.get("cuisine")) or "unknown",
+                    rating=_clean_float(row.get("rating")),
+                    cost_for_two=_clean_int(row.get("cost_for_two")),
+                    budget_band=_clean_str(row.get("budget_band")) or "unknown",
+                )
+            )
+
+        if not restaurants:
+            logger.warning("Seed parquet %s produced 0 restaurants; ignoring.", SEED_PARQUET_PATH)
+            return None
+
+        logger.info("Loaded %d restaurants from seed parquet: %s", len(restaurants), SEED_PARQUET_PATH)
+        return RestaurantStore(restaurants)
+    except Exception as exc:
+        logger.warning("Could not load seed parquet %s (%s); will load from Hugging Face.", SEED_PARQUET_PATH, exc)
+        return None
+
+
 def _save_to_cache(store: RestaurantStore) -> None:
     settings = get_settings()
     if not settings.use_data_cache:
@@ -150,6 +218,14 @@ def initialize_store(*, force_reload: bool = False) -> RestaurantStore:
         cached = _load_from_cache()
         if cached is not None:
             _store = cached
+            return _store
+
+        # Prefer the committed seed parquet over a live HF download. This keeps
+        # cold starts fast and low-memory on small containers (e.g. Railway).
+        seeded = _load_from_seed()
+        if seeded is not None:
+            _store = seeded
+            logger.info("Store initialized from seed: restaurants=%d cities=%s", _store.count, _store.cities)
             return _store
 
     start = time.perf_counter()
